@@ -1,0 +1,33 @@
+def appName = 'fe-usermgmt'
+def gitUrl = 'git@bitbucket.org:DBP_DevOps/fe_user_management.git'
+def branch = 'main'
+def nexusDockerDevRepo= '184.169.41.218:8082/repository/docker-dev'
+def namespace = 'superapp'
+
+
+node ('master'){
+	stage ("Prepare") {
+		cleanWs deleteDirs: true
+		checkout scm: [$class: 'GitSCM', userRemoteConfigs: [[credentialsId: 'Bitbucket-lab', url: "${gitUrl}"]], branches: [[name: "${branch}"]]]
+		
+	}
+
+	stage ("Build") {
+		withCredentials([usernamePassword(credentialsId: 'nexus-lab', passwordVariable: 'nexusPassword', usernameVariable: 'nexusUsername')]) {
+        	sh """
+            /usr/bin/docker login ${nexusDockerDevRepo} -u ${nexusUsername} -p ${nexusPassword}
+			/usr/bin/docker build -t ${nexusDockerDevRepo}/${appName}:$BUILD_NUMBER .
+			/usr/bin/docker push ${nexusDockerDevRepo}/${appName}:$BUILD_NUMBER
+			/usr/bin/docker rmi ${nexusDockerDevRepo}/${appName}:$BUILD_NUMBER
+			"""
+		}			
+	} 
+	
+	stage ("Deploy Application") {
+			
+		sh """		
+		sed -i 's|<<IMAGETAG>>|${nexusDockerDevRepo}/${appName}:$BUILD_NUMBER|g' kube/deployment.yaml
+		kubectl apply -f kube/deployment.yaml -n ${namespace} --kubeconfig /var/lib/jenkins/.kube/configk8s
+		"""		
+	}
+}

@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fe-usermgmt-deployment
+  labels:
+    app: fe-usermgmt
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fe-usermgmt
+  template:
+    metadata:
+      labels:
+        app: fe-usermgmt
+    spec:
+      containers:
+      - name: fe-usermgmt
+        image: <<IMAGETAG>>
+        ports:
+        - containerPort: 3000
+      imagePullSecrets:
+      - name: regcred
